@@ -1,0 +1,4 @@
+html, body, #app { margin: 0; padding: 0; height: 100%; background: #f4f6fa; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+.page { padding: 12px; padding-bottom: 70px; }
+.card { background: #fff; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+.tabbar-placeholder { height: 50px; }

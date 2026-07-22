@@ -1,0 +1,101 @@
+version: "3.8"
+
+services:
+  # 关系型数据库：使用 PostgreSQL 作为主存储（开发期也可降级为 H2，由后端 profile 决定）
+  postgres:
+    image: postgres:15-alpine
+    container_name: fishing-postgres
+    environment:
+      POSTGRES_DB: fishing_db
+      POSTGRES_USER: fishing
+      POSTGRES_PASSWORD: fishing_pwd
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fishing -d fishing_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # 缓存：Redis 用于配额热点缓存与告警广播
+  redis:
+    image: redis:7-alpine
+    container_name: fishing-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # 后端服务
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fishing-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/fishing_db
+      SPRING_DATASOURCE_USERNAME: fishing
+      SPRING_DATASOURCE_PASSWORD: fishing_pwd
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+    ports:
+      - "8080:8080"
+
+  # 管理端
+  admin-web:
+    build:
+      context: ./admin-web
+      dockerfile: Dockerfile
+    container_name: fishing-admin
+    depends_on:
+      - backend
+    ports:
+      - "8081:80"
+
+  # 移动端
+  mobile-web:
+    build:
+      context: ./mobile-web
+      dockerfile: Dockerfile
+    container_name: fishing-mobile
+    depends_on:
+      - backend
+    ports:
+      - "8082:80"
+
+  # 数据模拟器：一键注入 100 艘船 × 30 天数据
+  simulator:
+    build:
+      context: ./simulator
+      dockerfile: Dockerfile
+    container_name: fishing-simulator
+    depends_on:
+      backend:
+        condition: service_started
+    environment:
+      API_BASE: http://backend:8080
+    profiles: ["sim"]
+
+  # 反向代理（Nginx 统一入口）
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: fishing-nginx
+    depends_on:
+      - backend
+      - admin-web
+      - mobile-web
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
