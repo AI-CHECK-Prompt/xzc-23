@@ -11,7 +11,9 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "alert_event", indexes = {
         @Index(name = "idx_alert_vessel", columnList = "vesselId"),
-        @Index(name = "idx_alert_type", columnList = "alertType")
+        @Index(name = "idx_alert_type", columnList = "alertType"),
+        // 用于「同船同航次同告警类型待处理」去重查询
+        @Index(name = "idx_alert_dedup", columnList = "vesselId,voyageId,alertType,status")
 })
 public class AlertEvent {
 

@@ -37,6 +37,24 @@ public class AlertService {
         return alertRepo.save(a);
     }
 
+    /**
+     * 同船同航次同告警类型下，若已存在「待处理」告警则不再重复创建。
+     * 改为刷新最新描述与级别，避免每 5 分钟一次的定时检测产生大量重复告警。
+     * 当上一条被处置/忽略后，若异常仍然存在会重新生成新告警。
+     */
+    @Transactional
+    public AlertEvent createIfAbsent(String vesselId, String vesselNo, String voyageId,
+                                     String alertType, String level, String description) {
+        List<AlertEvent> existing = alertRepo.findPendingByVesselVoyageType(vesselId, voyageId, alertType);
+        if (!existing.isEmpty()) {
+            AlertEvent latest = existing.get(0);
+            latest.setDescription(description);
+            latest.setLevel(level);
+            return alertRepo.save(latest);
+        }
+        return create(vesselId, vesselNo, voyageId, alertType, level, description);
+    }
+
     @Transactional
     public AlertEvent handle(String alertId, String handler, String result) {
         AlertEvent a = alertRepo.findById(alertId)
@@ -63,6 +81,7 @@ public class AlertService {
     /**
      * 检测船位异常：长时间失联 / 关闭终端 / 越界
      * 简易策略：最后上报时间距今 > 2 小时视为失联；无最后位置视为终端关闭
+     * 同船同航次同类型的待处理告警会去重，重复触发时复用同一条并刷新描述。
      */
     public void detectAbnormal(VoyageDeclaration voyage) {
         if (voyage == null || !"已出港".equals(voyage.getStatus())) {
@@ -70,14 +89,14 @@ public class AlertService {
         }
         LocalDateTime last = positionService.latestTime(voyage.getVesselId());
         if (last == null) {
-            create(voyage.getVesselId(), voyage.getVesselNo(), voyage.getId(),
+            createIfAbsent(voyage.getVesselId(), voyage.getVesselNo(), voyage.getId(),
                     "关闭船位终端", "danger",
                     "船舶 " + voyage.getVesselNo() + " 长时间无船位回传，可能关闭了船位终端");
             return;
         }
         long minutes = java.time.Duration.between(last, LocalDateTime.now()).toMinutes();
         if (minutes > 120) {
-            create(voyage.getVesselId(), voyage.getVesselNo(), voyage.getId(),
+            createIfAbsent(voyage.getVesselId(), voyage.getVesselNo(), voyage.getId(),
                     "长时间失联", "danger",
                     "船舶 " + voyage.getVesselNo() + " 已 " + minutes + " 分钟未回传船位，疑似失联");
         }
