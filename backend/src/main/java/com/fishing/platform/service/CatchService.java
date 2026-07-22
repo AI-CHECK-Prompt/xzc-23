@@ -73,6 +73,29 @@ public class CatchService {
         return catchRepo.save(d);
     }
 
+    /**
+     * 偏差复核：管理员填写复核结论，将状态推进至「已完成」。
+     * 仅当当前状态为「偏差复核中」时才允许提交。
+     */
+    @Transactional
+    public CatchDeclaration reviewDeviation(String id, String reviewReason, String reviewer) {
+        CatchDeclaration d = catchRepo.findById(id)
+                .orElseThrow(() -> new BusinessException("渔获申报单不存在"));
+        if (!"偏差复核中".equals(d.getStatus())) {
+            throw new BusinessException("当前状态非「偏差复核中」，无需复核");
+        }
+        if (reviewReason == null || reviewReason.trim().isEmpty()) {
+            throw new BusinessException("请填写复核结论");
+        }
+        // 复核结论追加到偏差原因，保留原异常原因便于追溯
+        String origin = d.getDeviationReason() == null ? "" : d.getDeviationReason();
+        String stamp = LocalDateTime.now() + " 复核人=" + (reviewer == null ? "" : reviewer)
+                + " 结论=" + reviewReason;
+        d.setDeviationReason(origin.isEmpty() ? stamp : origin + "\n---\n" + stamp);
+        d.setStatus("已完成");
+        return catchRepo.save(d);
+    }
+
     public List<CatchDeclaration> findByVoyage(String voyageId) {
         return catchRepo.findByVoyage(voyageId);
     }

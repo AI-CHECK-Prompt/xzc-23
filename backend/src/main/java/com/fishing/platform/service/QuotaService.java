@@ -57,7 +57,9 @@ public class QuotaService {
             if (!Objects.equals(v.getOwnerName(), owner)) continue;
             if (portName != null && !Objects.equals(v.getPortName(), portName)) continue;
             for (CatchDeclaration c : catchRepo.findByVessel(v.getId())) {
+                // 仅纳入「已完成」申报单，未提交过磅或仍处于「偏差复核中」的不计入累计
                 if (c.getActualTotal() == null) continue;
+                if (!"已完成".equals(c.getStatus())) continue;
                 if (v.getSeaAreaName() == null) continue;
                 VoyageDeclaration voyage = voyageRepo.findById(c.getVoyageId()).orElse(null);
                 if (voyage == null || voyage.getYear() == null || voyage.getYear() != year) continue;
@@ -119,7 +121,9 @@ public class QuotaService {
         BigDecimal total = BigDecimal.ZERO;
         for (VoyageDeclaration voyage : voyages) {
             for (CatchDeclaration c : catchRepo.findByVoyage(voyage.getId())) {
+                // 仅纳入「已完成」申报单，「偏差复核中」不计入海区累计
                 if (c.getActualTotal() == null) continue;
+                if (!"已完成".equals(c.getStatus())) continue;
                 total = total.add(c.getActualTotal());
             }
         }
@@ -137,7 +141,9 @@ public class QuotaService {
         BigDecimal total = BigDecimal.ZERO;
         for (VoyageDeclaration voyage : voyages) {
             for (CatchDeclaration c : catchRepo.findByVoyage(voyage.getId())) {
+                // 仅纳入「已完成」申报单
                 if (c.getActualTotal() == null) continue;
+                if (!"已完成".equals(c.getStatus())) continue;
                 total = total.add(c.getActualTotal());
             }
         }

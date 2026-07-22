@@ -33,6 +33,14 @@ public class CatchController {
         return ApiResult.ok(catchService.confirmWeigh(id, actual, reason, operator));
     }
 
+    @PostMapping("/reviewDeviation/{id}")
+    public ApiResult<CatchDeclaration> reviewDeviation(@PathVariable String id,
+                                                       @RequestBody Map<String, Object> body) {
+        String reviewReason = (String) body.getOrDefault("reviewReason", "");
+        String reviewer = (String) body.getOrDefault("reviewer", "渔港管理员");
+        return ApiResult.ok(catchService.reviewDeviation(id, reviewReason, reviewer));
+    }
+
     @GetMapping("/byVoyage/{voyageId}")
     public ApiResult<List<CatchDeclaration>> byVoyage(@PathVariable String voyageId) {
         return ApiResult.ok(catchService.findByVoyage(voyageId));
