@@ -49,18 +49,19 @@ public class QuotaService {
     public Map<String, Object> summaryForOwner(String owner, String portName, Integer year) {
         if (year == null) year = LocalDate.now().getYear();
         List<Vessel> vessels = vesselRepo.findAll();
-        Map<String, BigDecimal> usedBySpecies = new HashMap<>();
-        BigDecimal totalUsed = BigDecimal.ZERO;
+        // 按 (海区|品种) 复合键累计：配额规则按海区+品种分档，跨海区累计会导致同一品种在不同海区之间互相透支
+        Map<String, BigDecimal> usedBySeaAreaAndSpecies = new HashMap<>();
         BigDecimal totalDeduct = BigDecimal.ZERO;
 
         for (Vessel v : vessels) {
             if (!Objects.equals(v.getOwnerName(), owner)) continue;
             if (portName != null && !Objects.equals(v.getPortName(), portName)) continue;
+            String vesselSeaArea = v.getSeaAreaName();
             for (CatchDeclaration c : catchRepo.findByVessel(v.getId())) {
                 // 仅纳入「已完成」申报单，未提交过磅或仍处于「偏差复核中」的不计入累计
                 if (c.getActualTotal() == null) continue;
                 if (!"已完成".equals(c.getStatus())) continue;
-                if (v.getSeaAreaName() == null) continue;
+                if (vesselSeaArea == null) continue;
                 VoyageDeclaration voyage = voyageRepo.findById(c.getVoyageId()).orElse(null);
                 if (voyage == null || voyage.getYear() == null || voyage.getYear() != year) continue;
                 if (c.getItemsJson() != null) {
@@ -69,12 +70,14 @@ public class QuotaService {
                         for (JsonNode item : arr) {
                             String species = item.path("species").asText();
                             BigDecimal w = item.path("actualWeight").decimalValue();
-                            usedBySpecies.merge(species, w, BigDecimal::add);
-                            totalUsed = totalUsed.add(w);
+                            String key = vesselSeaArea + "|" + species;
+                            usedBySeaAreaAndSpecies.merge(key, w, BigDecimal::add);
                         }
                     } catch (Exception ignored) {}
                 } else {
-                    totalUsed = totalUsed.add(c.getActualTotal());
+                    // 无明细时按海区维度落账，避免跨海区串
+                    String key = vesselSeaArea + "|(未分品种)";
+                    usedBySeaAreaAndSpecies.merge(key, c.getActualTotal(), BigDecimal::add);
                 }
             }
             for (ViolationNotice n : violationRepo.findByVessel(v.getId())) {
@@ -89,25 +92,33 @@ public class QuotaService {
         result.put("owner", owner);
         result.put("portName", portName);
         result.put("year", year);
-        result.put("totalUsed", totalUsed);
         result.put("totalDeduct", totalDeduct);
         List<Map<String, Object>> ruleList = new ArrayList<>();
         BigDecimal totalQuota = BigDecimal.ZERO;
+        BigDecimal totalUsed = BigDecimal.ZERO;
+        BigDecimal totalRemaining = BigDecimal.ZERO;
         for (QuotaRule r : rules) {
+            String key = r.getSeaAreaName() + "|" + r.getSpecies();
+            BigDecimal used = usedBySeaAreaAndSpecies.getOrDefault(key, BigDecimal.ZERO);
+            BigDecimal remaining = r.getTotalQuota().subtract(used);
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("species", r.getSpecies());
             m.put("seaArea", r.getSeaAreaName());
             m.put("totalQuota", r.getTotalQuota());
-            m.put("used", usedBySpecies.getOrDefault(r.getSpecies(), BigDecimal.ZERO));
-            m.put("remaining", r.getTotalQuota().subtract(usedBySpecies.getOrDefault(r.getSpecies(), BigDecimal.ZERO)));
+            m.put("used", used);
+            m.put("remaining", remaining);
             m.put("minSize", r.getMinSize());
             m.put("banned", r.isBanned());
             ruleList.add(m);
             totalQuota = totalQuota.add(r.getTotalQuota());
+            totalUsed = totalUsed.add(used);
+            totalRemaining = totalRemaining.add(remaining);
         }
         result.put("rules", ruleList);
         result.put("totalQuota", totalQuota);
-        result.put("totalRemaining", totalQuota.subtract(totalUsed).subtract(totalDeduct));
+        result.put("totalUsed", totalUsed);
+        // 违规扣减不在分品种配额里逐条扣减，单独展示；总额由 per-rule 累加，保持与明细一致
+        result.put("totalRemaining", totalRemaining);
         return result;
     }
 
