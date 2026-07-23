@@ -9,7 +9,8 @@ const routes = [
   { path: '/alert', component: () => import('@/views/AlertList.vue') },
   { path: '/quota', component: () => import('@/views/QuotaPanel.vue') },
   { path: '/enforcement', component: () => import('@/views/EnforcementPanel.vue') },
-  { path: '/purchase', component: () => import('@/views/PurchaseList.vue') }
+  { path: '/purchase', component: () => import('@/views/PurchaseList.vue') },
+  { path: '/price-index', component: () => import('@/views/PriceIndex.vue') }
 ]
 
 const router = createRouter({

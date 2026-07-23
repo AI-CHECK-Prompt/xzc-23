@@ -63,7 +63,7 @@ public class QuotaService {
                 if (!"已完成".equals(c.getStatus())) continue;
                 if (vesselSeaArea == null) continue;
                 VoyageDeclaration voyage = voyageRepo.findById(c.getVoyageId()).orElse(null);
-                if (voyage == null || voyage.getYear() == null || voyage.getYear() != year) continue;
+                if (voyage == null || voyage.getDeclarationYear() == null || voyage.getDeclarationYear() != year) continue;
                 if (c.getItemsJson() != null) {
                     try {
                         JsonNode arr = mapper.readTree(c.getItemsJson());

@@ -65,7 +65,7 @@ public class VoyageService {
         declaration.setSeaAreaName(vessel.getSeaAreaName());
         declaration.setMaxAllowedDays(maxDays);
         declaration.setStatus("已申报");
-        declaration.setYear(LocalDateTime.now().getYear());
+        declaration.setDeclarationYear(LocalDateTime.now().getYear());
         if (declaration.getId() == null) {
             declaration.setId(UUID.randomUUID().toString().replace("-", ""));
         }

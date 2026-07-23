@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Data
 @Entity
 @Table(name = "voyage_declaration", indexes = {
-        @Index(name = "idx_vessel_year", columnList = "vesselId,year"),
+        @Index(name = "idx_vessel_year", columnList = "vesselId,declarationYear"),
         @Index(name = "idx_status", columnList = "status")
 })
 public class VoyageDeclaration {
@@ -56,8 +56,9 @@ public class VoyageDeclaration {
     /** 最长允许出海天数（系统规则） */
     private Integer maxAllowedDays;
 
-    /** 申报年份（用于按年度聚合） */
-    private Integer year;
+    /** 申报年份（用于按年度聚合，重命名以避免与 H2 保留字 year 冲突） */
+    @Column(name = "declaration_year")
+    private Integer declarationYear;
 
     /** 计划出港时间 */
     private LocalDateTime planDepartureTime;

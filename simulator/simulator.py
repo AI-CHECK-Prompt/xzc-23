@@ -24,6 +24,14 @@ PORTS = [
 ]
 SPECIES = ["带鱼", "黄花鱼", "鲳鱼", "墨鱼", "梭子蟹", "虾蛄"]
 METHODS = ["刺网", "围网", "拖网", "钓具"]
+# 品种参考价（元/kg）— 模拟季节性波动
+SPECIES_BASE_PRICE = {
+    "带鱼": 28, "黄花鱼": 45, "鲳鱼": 35, "墨鱼": 32, "梭子蟹": 60, "虾蛄": 40
+}
+DESTINATIONS = [
+    "泉州华洲水产品加工", "福州连江海盈食品", "漳州龙海闽南水产",
+    "厦门高崎远洋渔业加工", "宁德三沙海捷冷链"
+]
 
 
 def log(msg):
@@ -198,6 +206,35 @@ def inject_alert(vessel, voyage_id, alert_type, description, level="warn"):
     })
 
 
+def inject_purchase(voyage_id, vessel, purchase_time):
+    """归港后由采购商回传采购信息。基于品种基础价叠加随机扰动，1% 概率注入异常价。"""
+    items = []
+    chosen = random.sample(SPECIES, random.randint(2, 4))
+    for s in chosen:
+        base = SPECIES_BASE_PRICE.get(s, 30)
+        # ±15% 正常波动
+        price = round(base * random.uniform(0.85, 1.15), 2)
+        # 1% 概率异常高价；0.5% 异常低价
+        r = random.random()
+        if r < 0.01:
+            price = round(base * random.uniform(5, 10), 2)
+        elif r < 0.015:
+            price = round(base * random.uniform(0.05, 0.2), 2)
+        weight = round(random.uniform(20, 120), 2)
+        body = {
+            "vesselId": vessel["id"],
+            "vesselNo": vessel["vesselNo"],
+            "voyageId": voyage_id,
+            "buyerName": random.choice(["采购商A", "采购商B", "采购商C", "采购商D"]),
+            "species": s,
+            "weight": weight,
+            "price": price,
+            "destination": random.choice(DESTINATIONS),
+            "purchaseTime": purchase_time.strftime("%Y-%m-%dT%H:%M:%S")
+        }
+        http_post("/api/purchase/report", body)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--vessels", type=int, default=100, help="模拟船舶数量")
@@ -251,6 +288,8 @@ def main():
             return_port(voyage["id"])
             # 渔获
             submit_catch(voyage["id"], v)
+            # 采购回传（归港当天傍晚）
+            inject_purchase(voyage["id"], v, plan_day + timedelta(hours=plan_days * 24 + 16))
             # 违规
             issue_violation(v, voyage["id"])
 

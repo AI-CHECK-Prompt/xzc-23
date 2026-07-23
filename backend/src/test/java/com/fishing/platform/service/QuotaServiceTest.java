@@ -62,7 +62,7 @@ class QuotaServiceTest {
     private QuotaRule rule(String id, String seaArea, String species, String qty) {
         QuotaRule r = new QuotaRule();
         r.setId(id);
-        r.setYear(year);
+        r.setQuotaYear(year);
         r.setSeaAreaName(seaArea);
         r.setSpecies(species);
         r.setTotalQuota(new BigDecimal(qty));
@@ -85,7 +85,7 @@ class QuotaServiceTest {
     private VoyageDeclaration voyage(String id, int yr) {
         VoyageDeclaration v = new VoyageDeclaration();
         v.setId(id);
-        v.setYear(yr);
+        v.setDeclarationYear(yr);
         v.setStatus("已申报");
         return v;
     }

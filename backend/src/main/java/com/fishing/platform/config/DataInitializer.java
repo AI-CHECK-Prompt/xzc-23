@@ -27,7 +27,7 @@ public class DataInitializer {
             if (vesselRepo.count() > 0) {
                 return;
             }
-            // 三个示范渔港
+            // 三个示范渔港（海区去重：泉州/漳州同属闽南，避免唯一约束冲突）
             String[][] ports = {
                     {"泉州祥芝渔港", "闽南近海渔区"},
                     {"福州连江黄岐渔港", "闽东近海渔区"},
@@ -35,14 +35,16 @@ public class DataInitializer {
             };
             String[] species = {"带鱼", "黄花鱼", "鲳鱼", "墨鱼", "梭子蟹", "虾蛄"};
 
-            // 创建配额规则
+            // 创建配额规则（按海区去重，跨渔港但同海区时只生成一次）
             int year = LocalDate.now().getYear();
-            for (String[] port : ports) {
+            java.util.Set<String> uniqueSeaAreas = new java.util.LinkedHashSet<>();
+            for (String[] port : ports) uniqueSeaAreas.add(port[1]);
+            for (String seaArea : uniqueSeaAreas) {
                 for (String s : species) {
                     QuotaRule r = new QuotaRule();
                     r.setId(UUID.randomUUID().toString().replace("-", ""));
-                    r.setYear(year);
-                    r.setSeaAreaName(port[1]);
+                    r.setQuotaYear(year);
+                    r.setSeaAreaName(seaArea);
                     r.setSpecies(s);
                     r.setTotalQuota(new BigDecimal("50000"));
                     r.setMinSize("符合最小可捕规格");

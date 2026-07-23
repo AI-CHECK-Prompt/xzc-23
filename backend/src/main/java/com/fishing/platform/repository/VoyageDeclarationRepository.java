@@ -17,12 +17,12 @@ public interface VoyageDeclarationRepository extends JpaRepository<VoyageDeclara
     @Query("select v from VoyageDeclaration v where v.status in ('已申报','已出港') and v.planDepartureTime < :threshold")
     List<VoyageDeclaration> findOverdue(@Param("threshold") LocalDateTime threshold);
 
-    @Query("select v from VoyageDeclaration v where v.year = :year")
+    @Query("select v from VoyageDeclaration v where v.declarationYear = :year")
     List<VoyageDeclaration> findByYear(@Param("year") Integer year);
 
-    @Query("select v from VoyageDeclaration v where v.portName = :portName and v.year = :year")
+    @Query("select v from VoyageDeclaration v where v.portName = :portName and v.declarationYear = :year")
     List<VoyageDeclaration> findByPortAndYear(@Param("portName") String portName, @Param("year") Integer year);
 
-    @Query("select v from VoyageDeclaration v where v.seaAreaName = :area and v.year = :year")
+    @Query("select v from VoyageDeclaration v where v.seaAreaName = :area and v.declarationYear = :year")
     List<VoyageDeclaration> findBySeaAreaAndYear(@Param("area") String area, @Param("year") Integer year);
 }

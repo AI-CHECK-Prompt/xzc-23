@@ -9,11 +9,11 @@ import java.util.Optional;
 
 public interface QuotaRuleRepository extends JpaRepository<QuotaRule, String> {
 
-    @Query("select q from QuotaRule q where q.year = :year and q.seaAreaName = :area and q.species = :species")
+    @Query("select q from QuotaRule q where q.quotaYear = :year and q.seaAreaName = :area and q.species = :species")
     Optional<QuotaRule> findRule(@Param("year") Integer year,
                                  @Param("area") String area,
                                  @Param("species") String species);
 
-    @Query("select q from QuotaRule q where q.year = :year")
+    @Query("select q from QuotaRule q where q.quotaYear = :year")
     List<QuotaRule> findByYear(@Param("year") Integer year);
 }
