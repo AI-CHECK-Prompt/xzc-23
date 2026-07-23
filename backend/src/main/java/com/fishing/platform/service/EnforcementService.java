@@ -1,5 +1,6 @@
 package com.fishing.platform.service;
 
+import com.fishing.platform.common.BusinessException;
 import com.fishing.platform.entity.Vessel;
 import com.fishing.platform.entity.ViolationNotice;
 import com.fishing.platform.repository.VesselRepository;
@@ -12,6 +13,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -49,11 +51,18 @@ public class EnforcementService {
 
     /**
      * 配额扣减：违规后调用
+     * 仅对待生效状态的告知书允许扣减；已撤销、已结案、已扣减的告知书拒绝再次扣减
      */
     @Transactional
     public ViolationNotice applyQuotaDeduct(String noticeId, BigDecimal deducted) {
         ViolationNotice n = noticeRepo.findById(noticeId)
                 .orElseThrow(() -> new IllegalArgumentException("违规告知书不存在"));
+        String status = n.getStatus();
+        // 已生效 = 已完成扣减；已撤销 / 已结案 不可再扣减
+        Set<String> blocked = Set.of("已生效", "已撤销", "已结案");
+        if (status != null && blocked.contains(status)) {
+            throw new BusinessException("告知书当前状态为「" + status + "」，不允许再次扣减配额");
+        }
         n.setQuotaDeducted(deducted);
         n.setStatus("已生效");
         return noticeRepo.save(n);
