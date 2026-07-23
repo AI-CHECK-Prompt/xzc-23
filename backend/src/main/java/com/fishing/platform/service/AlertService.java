@@ -1,9 +1,12 @@
 package com.fishing.platform.service;
 
+import com.fishing.platform.common.BusinessException;
 import com.fishing.platform.entity.AlertEvent;
+import com.fishing.platform.entity.AlertHandleLog;
 import com.fishing.platform.entity.VesselPosition;
 import com.fishing.platform.entity.VoyageDeclaration;
 import com.fishing.platform.repository.AlertEventRepository;
+import com.fishing.platform.repository.AlertHandleLogRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +22,7 @@ import java.util.UUID;
 public class AlertService {
 
     @Autowired private AlertEventRepository alertRepo;
+    @Autowired private AlertHandleLogRepository handleLogRepo;
     @Autowired private PositionService positionService;
 
     @Transactional
@@ -58,12 +62,31 @@ public class AlertService {
     @Transactional
     public AlertEvent handle(String alertId, String handler, String result) {
         AlertEvent a = alertRepo.findById(alertId)
-                .orElseThrow(() -> new IllegalArgumentException("告警不存在"));
+                .orElseThrow(() -> new BusinessException("告警不存在"));
+        // 防止「已处置」告警被二次提交覆盖，丢失首次经办人与处置过程
+        if ("已处置".equals(a.getStatus())) {
+            throw new BusinessException("该告警已处置，不允许重复处置；如需变更请使用变更处置流程");
+        }
+        LocalDateTime now = LocalDateTime.now();
         a.setStatus("已处置");
         a.setHandler(handler);
         a.setHandleResult(result);
-        a.setHandledAt(LocalDateTime.now());
-        return alertRepo.save(a);
+        a.setHandledAt(now);
+        AlertEvent saved = alertRepo.save(a);
+        // 同步写入审计日志，保留本次处置人/时间/结果，便于后续审计追溯
+        AlertHandleLog log = new AlertHandleLog();
+        log.setId(UUID.randomUUID().toString().replace("-", ""));
+        log.setAlertId(saved.getId());
+        log.setHandler(handler);
+        log.setHandleResult(result);
+        log.setHandledAt(now);
+        log.setAction("处置");
+        handleLogRepo.save(log);
+        return saved;
+    }
+
+    public List<AlertHandleLog> handleHistory(String alertId) {
+        return handleLogRepo.findByAlertId(alertId);
     }
 
     public List<AlertEvent> pending() {

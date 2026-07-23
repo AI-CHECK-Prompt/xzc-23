@@ -2,6 +2,7 @@ package com.fishing.platform.controller;
 
 import com.fishing.platform.common.ApiResult;
 import com.fishing.platform.entity.AlertEvent;
+import com.fishing.platform.entity.AlertHandleLog;
 import com.fishing.platform.service.AlertService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -38,6 +39,14 @@ public class AlertController {
     public ApiResult<AlertEvent> handle(@PathVariable String id,
                                         @RequestBody Map<String, String> body) {
         return ApiResult.ok(alertService.handle(id, body.get("handler"), body.get("result")));
+    }
+
+    /**
+     * 查询某条告警的处置审计历史（按处置时间倒序），便于违规船舶责任认定时的追溯
+     */
+    @GetMapping("/handleHistory/{id}")
+    public ApiResult<List<AlertHandleLog>> handleHistory(@PathVariable String id) {
+        return ApiResult.ok(alertService.handleHistory(id));
     }
 
     @GetMapping("/byVessel/{vesselId}")
