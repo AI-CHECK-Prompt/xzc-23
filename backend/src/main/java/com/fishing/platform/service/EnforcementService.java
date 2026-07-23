@@ -36,8 +36,10 @@ public class EnforcementService {
         }
         if (notice.getNoticeNo() == null || notice.getNoticeNo().isEmpty()) {
             String dateStr = LocalDate.now().toString().replace("-", "");
-            notice.setNoticeNo("WZ-" + (notice.getVesselNo() == null ? "" : notice.getVesselNo())
-                    + "-" + dateStr + "-" + System.currentTimeMillis() % 10000);
+            // 当事人船舶未登记或临时挂靠未纳入平台时，vesselNo 为空，使用 UNREG 占位，避免出现 WZ--xxxx 双横线
+            String vesselPart = (notice.getVesselNo() == null || notice.getVesselNo().isEmpty())
+                    ? "UNREG" : notice.getVesselNo();
+            notice.setNoticeNo("WZ-" + vesselPart + "-" + dateStr + "-" + System.currentTimeMillis() % 10000);
         }
         notice.setIssueTime(LocalDateTime.now());
         notice.setCreatedAt(LocalDateTime.now());
